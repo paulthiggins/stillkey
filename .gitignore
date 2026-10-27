@@ -1,0 +1,10 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+*.local
+
+*.tsbuildinfo
+
+# Local authenticator exports contain account secrets.
+tests/sample-qr-codes/
