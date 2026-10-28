@@ -1,0 +1,25 @@
+name: stillkey
+services:
+  web:
+    image: local/stillkey:${RELEASE_ID:?Set RELEASE_ID in /srv/stacks/.env}
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks:
+      proxy:
+        aliases: [stillkey-web]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+    logging:
+      driver: local
+      options: {max-size: "10m", max-file: "3"}
+networks:
+  proxy:
+    external: true
+    name: stillkey-proxy

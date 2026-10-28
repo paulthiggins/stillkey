@@ -1,0 +1,19 @@
+{
+	email {$ACME_EMAIL}
+}
+
+myclinichelper.com, www.myclinichelper.com {
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000"
+	}
+	reverse_proxy myclinichelper-web:8080
+}
+
+stillkey.paulhiggins.cloud {
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000"
+	}
+	reverse_proxy stillkey-web:8080
+}

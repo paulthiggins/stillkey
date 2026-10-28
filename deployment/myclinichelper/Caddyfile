@@ -1,0 +1,21 @@
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:8080 {
+	root * /srv
+	encode zstd gzip
+	header -Server
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		X-Frame-Options DENY
+		Cache-Control no-cache
+	}
+	@private path /.git /.git/* /.env /.env.* /Dockerfile /Caddyfile /compose.yaml
+	respond @private 404
+	respond /healthz "ok" 200
+	file_server
+}

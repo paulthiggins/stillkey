@@ -1,0 +1,41 @@
+name: gateway
+services:
+  caddy:
+    image: caddy:2.11.7-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in /srv/stacks/.env}
+    volumes:
+      - ./:/etc/caddy:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    networks: [egress, clinic, stillkey]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:2019/config/"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+    logging:
+      driver: local
+      options: {max-size: "10m", max-file: "3"}
+networks:
+  egress: {}
+  clinic:
+    external: true
+    name: mch-proxy
+  stillkey:
+    external: true
+    name: stillkey-proxy
+volumes:
+  caddy_data: {}
+  caddy_config: {}

@@ -54,6 +54,10 @@ npm run test:e2e
 
 On Linux, Playwright may need OS libraries (`npx playwright install-deps`). Tests use only synthetic secrets. The browser suite serves the production build and covers desktop Chromium, Firefox, WebKit, and a mobile Chromium viewport. WebKit emulation is not a substitute for testing real Safari/iOS hardware; actual camera permissions, installation, and OS storage lifecycle require device checks. See [VALIDATION.md](VALIDATION.md) for the results from this build.
 
+## Caddy/Docker VPS deployment
+
+For the prepared two-domain VPS setup, follow [deployment/README.md](deployment/README.md). It includes fresh-server bootstrap, SSH hardening, release packaging, separate Compose projects, and a verification script for `myclinichelper.com` and `stillkey.paulhiggins.cloud`.
+
 ## Static deployment
 
 Deploy the contents of `dist/` to a dedicated HTTPS origin at its root. Do not deploy the source tree or `node_modules`. Localhost is a secure-context exception; plain HTTP on a LAN is not. No server API is required. Keep the same origin to retain access to IndexedDB. Moving domains does not move the vault: use a backup.

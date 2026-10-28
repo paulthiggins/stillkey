@@ -63,3 +63,11 @@ This Linux host lacked WebKit's libavif13/libgav1/libyuv runtime dependencies. T
 - Firefox and WebKit skip the synthetic canvas-camera test; camera scanning there requires real-device validation. Their offline QR image and synthetic paste paths pass.
 - Native clipboard-write success is asserted on Chromium/Edge; other browser clipboard permissions require device checks.
 - No independent penetration test, cryptographic code audit, or formal accessibility audit is claimed.
+
+## Docker/Caddy deployment kit — 27 October 2026
+
+Added `deployment/` with fresh Debian/Ubuntu bootstrap, separate SSH hardening, local packaging, three Compose projects, public HTTP verification, and an isolated local container rehearsal. Bash syntax and ShellCheck passed. The packaged application passed strict TypeScript, lint, all 37 unit tests, and a production build; npm reported zero known dependency vulnerabilities.
+
+The actual public deployment bundle was built and exercised using Docker and a checksum-verified Compose CLI. Tests passed for domain routing, application health, internal networks, public content and the repaired packaged favicon, security/cache headers, missing-asset 404 behavior, Caddy config reload through its directory mount, and application restart. The test used random loopback ports and HTTP-only test domains, made no production certificate requests, and removed its containers/networks/volumes afterwards.
+
+Host bootstrap, SSH hardening, provider firewall rules, public DNS, real HTTPS certificate issuance, and real-device production checks have not been executed on the VPS. Follow `deployment/README.md` for that sequence. No VPS files or services were changed during preparation.

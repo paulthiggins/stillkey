@@ -1,10 +1,23 @@
+# Dependencies and generated builds
 node_modules/
 dist/
+*.tsbuildinfo
+
+# Test reports and tool caches
 test-results/
 playwright-report/
-*.local
+coverage/
+__pycache__/
+*.py[cod]
 
-*.tsbuildinfo
+# Local configuration and credentials
+*.local
+.env
+.env.*
+!.env.example
 
 # Local authenticator exports contain account secrets.
 tests/sample-qr-codes/
+
+# Generated public deployment bundles
+deployment/out/
