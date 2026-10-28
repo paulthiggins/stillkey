@@ -25,11 +25,13 @@ async function unlock(page: Page) {
 }
 async function add(page: Page) {
   await page.getByRole("button", { name: "Add account", exact: true }).click();
-  await page.getByLabel("Display label").fill("Personal email");
-  await page.getByLabel("Issuer / service").fill("Example");
-  await page.getByLabel("Account identifier").fill("demo@example.test");
-  await page.getByLabel("Setup key (Base32 secret)").fill(secret);
-  await page.getByRole("button", { name: "Save account" }).click();
+  await page
+    .getByLabel("Paste a QR code or an authenticator URI")
+    .fill(
+      `otpauth://totp/Personal%20email:demo@example.test?secret=${secret}&issuer=Personal%20email`,
+    );
+  await page.getByRole("button", { name: "Preview import" }).click();
+  await page.getByRole("button", { name: "Import 1 new accounts" }).click();
   await expect(
     page.getByRole("heading", { name: "Personal email", exact: true }),
   ).toBeVisible();
@@ -114,7 +116,7 @@ test("offline shell, QR image and clipboard import, backup and recovery", async 
   await context.setOffline(true);
   await page.reload();
   await unlock(page);
-  await page.getByRole("button", { name: "Import", exact: true }).click();
+  await page.getByRole("button", { name: "Add account", exact: true }).click();
   const png = await QRCode.toBuffer(uri, { width: 400 });
   await page.getByLabel("Upload QR image", { exact: true }).setInputFiles({
     name: "synthetic.png",
@@ -128,7 +130,7 @@ test("offline shell, QR image and clipboard import, backup and recovery", async 
   await expect(
     page.getByRole("heading", { name: "Example", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Import", exact: true }).click();
+  await page.getByRole("button", { name: "Add account", exact: true }).click();
   await page.evaluate(async (bytes) => {
     const blob = new Blob([new Uint8Array(bytes)], { type: "image/png" });
     const transfer = new DataTransfer();
@@ -209,13 +211,17 @@ test("migration requires all batch parts and reports HOTP", async ({
   page,
 }) => {
   await create(page);
-  await page.getByRole("button", { name: "Import", exact: true }).click();
-  await page.getByLabel("Or paste an authenticator URI").fill(migration(0));
+  await page.getByRole("button", { name: "Add account", exact: true }).click();
+  await page
+    .getByLabel("Paste a QR code or an authenticator URI")
+    .fill(migration(0));
   await page.getByRole("button", { name: "Preview import" }).click();
   await expect(
     page.getByRole("button", { name: "Import 1 new accounts" }),
   ).toBeDisabled();
-  await page.getByLabel("Or paste an authenticator URI").fill(migration(1, 1));
+  await page
+    .getByLabel("Paste a QR code or an authenticator URI")
+    .fill(migration(1, 1));
   await page.getByRole("button", { name: "Preview import" }).click();
   await expect(
     page.getByText(/HOTP \(counter 0\) is not supported/),
@@ -273,6 +279,14 @@ test("responsive layout and keyboard dialog navigation", async ({
   page,
 }, info) => {
   await create(page);
+  await expect(
+    page.getByRole("button", { name: "Import", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Add your first account" }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Add Account", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
   await add(page);
   expect(
     await page.evaluate(
@@ -284,7 +298,13 @@ test("responsive layout and keyboard dialog navigation", async ({
     fullPage: true,
   });
   await page.getByRole("button", { name: "Add account", exact: true }).click();
-  await expect(page.getByLabel("Display label")).toBeFocused();
+  await expect(
+    page.getByRole("dialog", { name: "Add Account", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Display label")).toHaveCount(0);
+  await expect(
+    page.getByLabel("Paste a QR code or an authenticator URI"),
+  ).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
@@ -383,7 +403,7 @@ test("camera pipeline decodes a synthetic stream and stops tracks", async ({
     });
     Object.defineProperty(window, "testCameraStream", { value: stream });
   }, image);
-  await page.getByRole("button", { name: "Import", exact: true }).click();
+  await page.getByRole("button", { name: "Add account", exact: true }).click();
   await page.getByRole("button", { name: "Use camera" }).click();
   await expect(
     page.getByRole("heading", { name: "1 supported account" }),
@@ -434,14 +454,12 @@ test("imports a Google Authenticator version 2 QR image", async ({ page }) => {
   const uri =
     "otpauth-migration://offline?data=" +
     encodeURIComponent(Buffer.from(payload).toString("base64"));
-  await page.getByRole("button", { name: "Import", exact: true }).click();
-  await page
-    .getByLabel("Upload QR image", { exact: true })
-    .setInputFiles({
-      name: "synthetic-v2-export.png",
-      mimeType: "image/png",
-      buffer: await QRCode.toBuffer(uri, { width: 400 }),
-    });
+  await page.getByRole("button", { name: "Add account", exact: true }).click();
+  await page.getByLabel("Upload QR image", { exact: true }).setInputFiles({
+    name: "synthetic-v2-export.png",
+    mimeType: "image/png",
+    buffer: await QRCode.toBuffer(uri, { width: 400 }),
+  });
   await expect(
     page.getByRole("heading", { name: "1 supported account" }),
   ).toBeVisible();

@@ -177,7 +177,7 @@ export default function App() {
     [page, setPage] = useState<"accounts" | "settings">("accounts"),
     [query, setQuery] = useState(""),
     [modal, setModal] = useState<
-      "add" | "import" | "restore" | "password" | "deleteVault" | null
+      "add" | "restore" | "password" | "deleteVault" | null
     >(null),
     [editing, setEditing] = useState<TotpAccount | null>(null),
     [deleting, setDeleting] = useState<TotpAccount | null>(null),
@@ -682,13 +682,6 @@ export default function App() {
                     <option value="manual">Manual order</option>
                     <option value="alphabetical">A → Z</option>
                   </select>
-                  <button
-                    className="secondary"
-                    onClick={() => setModal("import")}
-                  >
-                    <Icon name="qr" size={17} />
-                    Import
-                  </button>
                 </div>
                 {clockWarning && (
                   <div className="notice">
@@ -881,12 +874,6 @@ export default function App() {
                         >
                           <Icon name="plus" size={17} />
                           Add your first account
-                        </button>
-                        <button
-                          className="text-button"
-                          onClick={() => setModal("import")}
-                        >
-                          Import from another authenticator <span>↗</span>
                         </button>
                       </div>
                     )}
@@ -1105,27 +1092,13 @@ export default function App() {
             {toast}
           </div>
         )}
-        {(modal === "add" || editing) && data && (
-          <Modal
-            title={editing ? "Edit account" : "Add an account"}
-            close={() => {
-              setModal(null);
-              setEditing(null);
-            }}
-          >
+        {editing && data && (
+          <Modal title="Edit account" close={() => setEditing(null)}>
             <AccountForm account={editing} busy={busy} save={saveAccount} />
-            {!editing && (
-              <button
-                className="text-button full"
-                onClick={() => setModal("import")}
-              >
-                Scan a QR code or import accounts instead
-              </button>
-            )}
           </Modal>
         )}
-        {modal === "import" && data && (
-          <Modal title="Import accounts" close={() => setModal(null)}>
+        {modal === "add" && data && (
+          <Modal title="Add Account" close={() => setModal(null)}>
             <ImportForm
               existing={data.accounts}
               busy={busy}
@@ -1628,7 +1601,7 @@ function ImportForm({
         </label>
       </div>
       {camera && <video ref={video} muted playsInline className="camera" />}
-      <Field label="Or paste an authenticator URI">
+      <Field label="Paste a QR code or an authenticator URI">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}

@@ -51,7 +51,7 @@ test("dense multi-account QR upload and JPEG paste work offline", async ({
     .poll(() => page.evaluate(() => !!navigator.serviceWorker.controller))
     .toBe(true);
   await context.setOffline(true);
-  await page.getByRole("button", { name: "Import", exact: true }).click();
+  await page.getByRole("button", { name: "Add account", exact: true }).click();
   // This version/size/mask fails ZXing's normal finder-pattern detection.
   const image = await QRCode.toBuffer(denseExport(), {
     width: 862,
@@ -60,13 +60,11 @@ test("dense multi-account QR upload and JPEG paste work offline", async ({
     errorCorrectionLevel: "L",
     maskPattern: 0,
   });
-  await page
-    .getByLabel("Upload QR image", { exact: true })
-    .setInputFiles({
-      name: "dense-synthetic-export.png",
-      mimeType: "image/png",
-      buffer: image,
-    });
+  await page.getByLabel("Upload QR image", { exact: true }).setInputFiles({
+    name: "dense-synthetic-export.png",
+    mimeType: "image/png",
+    buffer: image,
+  });
   await expect(
     page.getByRole("heading", { name: "4 supported accounts" }),
   ).toBeVisible();
