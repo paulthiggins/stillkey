@@ -54,9 +54,9 @@ npm run test:e2e
 
 On Linux, Playwright may need OS libraries (`npx playwright install-deps`). Tests use only synthetic secrets. The browser suite serves the production build and covers desktop Chromium, Firefox, WebKit, and a mobile Chromium viewport. WebKit emulation is not a substitute for testing real Safari/iOS hardware; actual camera permissions, installation, and OS storage lifecycle require device checks. See [VALIDATION.md](VALIDATION.md) for the results from this build.
 
-## Caddy/Docker VPS deployment
+## Stillkey deployment
 
-For the prepared two-domain VPS setup, follow [deployment/README.md](deployment/README.md). It includes fresh-server bootstrap, SSH hardening, release packaging, separate Compose projects, and a verification script for `myclinichelper.com` and `stillkey.paulhiggins.cloud`.
+Use [deployment/README.md](deployment/README.md) for independent Stillkey releases. Packaging and updates affect only Stillkey, reusing the existing server gateway. Server-wide bootstrap and the original combined migration are kept separately in [infrastructure/README.md](infrastructure/README.md) for initial setup/recovery.
 
 ## Static deployment
 

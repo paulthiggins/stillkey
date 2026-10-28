@@ -71,3 +71,11 @@ Added `deployment/` with fresh Debian/Ubuntu bootstrap, separate SSH hardening, 
 The actual public deployment bundle was built and exercised using Docker and a checksum-verified Compose CLI. Tests passed for domain routing, application health, internal networks, public content and the repaired packaged favicon, security/cache headers, missing-asset 404 behavior, Caddy config reload through its directory mount, and application restart. The test used random loopback ports and HTTP-only test domains, made no production certificate requests, and removed its containers/networks/volumes afterwards.
 
 Host bootstrap, SSH hardening, provider firewall rules, public DNS, real HTTPS certificate issuance, and real-device production checks have not been executed on the VPS. Follow `deployment/README.md` for that sequence. No VPS files or services were changed during preparation.
+
+## Independent application deployments — 28 October 2026
+
+Normal releases under `deployment/` now contain Stillkey only. The original combined server setup, gateway configuration, and clinic migration are separated under `infrastructure/initial-vps/`; its deploy command refuses an existing installation. The app-only updater transitions from the legacy shared environment to a Stillkey-local environment while preserving the original shared file.
+
+Bash syntax, ShellCheck, strict TypeScript, lint, all 37 unit tests, and the production build passed. A Docker integration rehearsal ran the actual update/rollback scripts against a synthetic legacy-style installation. Two successful updates, a deliberately unhealthy update with automatic rollback, and manual rollback to the original baseline passed. Shared file hashes and gateway/other-app container IDs, start times, image IDs, and restart counts were unchanged. The bundle was checked for absence of other application content and gateway/bootstrap files. Test resources were removed; the VPS was not accessed or changed.
+
+The npm audit at packaging time reported four low-severity advisories in the build-tool dependency chain (deepmerge, @rollup/plugin-node-resolve, workbox-build, and vite-plugin-pwa); no moderate/high/critical advisories were reported. Dependency versions were not changed as part of this deployment separation.

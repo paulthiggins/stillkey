@@ -1,7 +1,7 @@
 name: stillkey
 services:
   web:
-    image: local/stillkey:${RELEASE_ID:?Set RELEASE_ID in /srv/stacks/.env}
+    image: local/stillkey:${RELEASE_ID:?Set RELEASE_ID in /srv/stacks/stillkey/.env}
     restart: unless-stopped
     read_only: true
     tmpfs:
@@ -22,4 +22,4 @@ services:
 networks:
   proxy:
     external: true
-    name: stillkey-proxy
+    name: ${STILLKEY_PROXY_NETWORK:-stillkey-proxy}

@@ -1,170 +1,89 @@
-# VPS rebuild: MyClinicHelper + Stillkey
+# Stillkey-only releases
 
-This setup is for a **freshly reinstalled Debian 13 VPS**. The bootstrap also supports Debian 12 and Ubuntu 22.04/24.04/26.04 LTS. It installs Docker Engine and the Compose plugin from Docker's official repository. Caddy runs in Docker, so there is no separate host Caddy/Nginx/PHP/MySQL installation.
+Use this directory for normal Stillkey updates to the already configured VPS. A release contains Stillkey's built files, its app container configuration, and its deploy/rollback/verification scripts. It does not contain another application's source, the shared gateway, host bootstrap, or SSH setup.
 
-The old VPS backup has already been taken and checked. Keep it off-server. The scripts do not reinstall the OS, delete the old VPS, restore old system configuration, change DNS, or connect to the VPS automatically. The bootstrap and SSH-hardening scripts must run on the VPS, not on your workstation or mounted server filesystem.
+The working server needs no immediate migration. Its existing routing and containers remain as they are until you choose to deploy a new Stillkey release. The first app-only update recognizes the original installation automatically.
 
-## Result
-
-| Address | Service |
-| --- | --- |
-| `myclinichelper.com` | MyClinicHelper static container |
-| `www.myclinichelper.com` | Same application, preserving the existing hostname |
-| `stillkey.paulhiggins.cloud` | Stillkey static PWA container |
-
-One Caddy gateway publishes TCP 80/443 and UDP 443 (HTTP/3). The gateway has outbound connectivity for certificate issuance. Each application connects to a separate internal Docker network with no published ports and no direct internet egress. Its code is baked into a versioned image, runs as an unprivileged numeric user, and has a read-only filesystem. Caddy certificate/configuration state uses persistent Docker volumes. No Docker socket is mounted into a container.
-
-Caddy is pinned to the official `caddy:2.11.7-alpine` image. It obtains and renews HTTPS certificates; do not restore or install Certbot. Requests are not access-logged by default. Docker runtime logs rotate automatically.
-
-## 1. Prepare the release on your workstation
-
-The current MyClinicHelper web root is `/home/pickacab/git/mch/www`, reached on the old host through `/home/pickacab/html`. Locally it is accessible through the mounted server filesystem:
+## Package locally
 
 ```bash
 cd /home/paul/my-authenticator
-bash deployment/package.sh /home/paul/myclinichelper.com/home/pickacab/git/mch/www
+bash deployment/package.sh
 ```
 
-If that mount is unavailable after reinstallation, extract the application from your backup into a separate local directory and pass its `home/pickacab/git/mch/www` path instead. Do not extract the old `/etc` into the new operating system.
+This runs locked dependency installation, type checking, lint, unit tests, and the production build. It creates `deployment/out/stillkey-release-TIMESTAMP.tar.gz` and a matching `.sha256` file. An optional `--output DIRECTORY` changes the output location. The old application-source argument is no longer accepted.
 
-`package.sh` installs locked npm dependencies, runs the unit tests/typecheck/lint, builds Stillkey, and creates `deployment/out/vps-release-TIMESTAMP.tar.gz` plus its SHA-256 checksum. It packages only public application content and setup files. The old backup, credentials, repository metadata, sample QR images, and `node_modules` are not included. Absolute or escaping web-root symlinks must be fixed before packaging. The existing favicon link is broken because its PNG was moved to `img/unused`; the packager repairs that specific link in its copy only. Other broken links fail packaging.
+The package contains no credentials, private QR samples, source repository, `node_modules`, or infrastructure configuration. You no longer need the old site's filesystem mounted to make a Stillkey release.
 
-Preserve the generated bundle locally; it is also your reproducible deployment input. Use the exact filenames printed by the script in the commands below.
+## Upload and update Stillkey
 
-## 2. Reinstall and bootstrap the VPS
-
-In your provider console, reinstall using Debian 13 and retain your IP if supported. Keep provider console/rescue access available. Verify the new SSH host-key fingerprint through the provider console before replacing your workstation's old known-host entry.
-
-If you have already used `ssh-copy-id root@SERVER_IP`, bootstrap can reuse `/root/.ssh/authorized_keys`. Upload just the bootstrap script; replace `SERVER_IP` with the new server IP:
+Use the actual filenames printed by the packager:
 
 ```bash
 # Workstation
-scp deployment/bootstrap.sh root@SERVER_IP:/root/
-ssh root@SERVER_IP
+scp deployment/out/stillkey-release-TIMESTAMP.tar.gz deployment/out/stillkey-release-TIMESTAMP.tar.gz.sha256 paul@SERVER_IP:~/
 ```
 
-Then run on the fresh VPS, using the actual current SSH port (22 in this example):
-
-```bash
-bash /root/bootstrap.sh paul
-# With a custom SSH port:
-# bash /root/bootstrap.sh paul /root/.ssh/authorized_keys 2222
-apt-get update
-apt-get upgrade -y
-```
-
-By default bootstrap reads root's existing `authorized_keys` (using root's home directory from the account database). It never edits that source file or changes root's SSH login settings. It creates/updates the `paul` admin account and merges those keys with any keys already present for `paul`, preserving key options and removing exact duplicate lines. Missing trailing newlines are handled safely. You can still supply a different public-key file explicitly: `bash /root/bootstrap.sh paul /root/id_ed25519.pub 22`.
-
-The bootstrap grants passwordless sudo, installs Docker/Compose, enables security updates without automatic reboots, and enables UFW for SSH and the web ports. It does not change the SSH daemon's listening port. It preserves the current SSH connection port when that information is available. It refuses to proceed if ports 80/443 are occupied or conflicting distro Docker packages exist.
-
-Passwordless sudo is deliberate for a key-based server admin account. The user is not added to the Docker group; use `sudo docker`.
-
-In the provider firewall, allow the actual SSH port, TCP 80/443, and optionally UDP 443. Restrict SSH to your management IP/VPN if practical. Docker-published ports can bypass UFW; do not add published ports to application containers. IPv6, if enabled, also needs firewall coverage.
-
-## 3. Verify the new login, then harden SSH
-
-Keep the original root session open. From a **new workstation terminal**, verify the public key works, explicitly disabling password fallback:
-
-```bash
-ssh -o PreferredAuthentications=publickey -o PasswordAuthentication=no paul@SERVER_IP
-sudo -n true
-```
-
-Upload the release bundle and checksum from the workstation:
-
-```bash
-scp deployment/out/vps-release-TIMESTAMP.tar.gz deployment/out/vps-release-TIMESTAMP.tar.gz.sha256 paul@SERVER_IP:~/
-```
-
-From the new `paul` session:
+On the VPS:
 
 ```bash
 cd ~
-sha256sum -c vps-release-TIMESTAMP.tar.gz.sha256
-mkdir -p ~/vps-release
-# Use a new empty extraction directory for each later release.
-tar -xzf vps-release-TIMESTAMP.tar.gz -C ~/vps-release
-sudo bash ~/vps-release/setup/harden-ssh.sh paul
+sha256sum -c stillkey-release-TIMESTAMP.tar.gz.sha256
+mkdir ~/stillkey-release-TIMESTAMP
+tar -xzf stillkey-release-TIMESTAMP.tar.gz -C ~/stillkey-release-TIMESTAMP
+sudo bash ~/stillkey-release-TIMESTAMP/setup/deploy.sh
+bash ~/stillkey-release-TIMESTAMP/setup/verify.sh
 ```
 
-`harden-ssh.sh` requires execution through sudo from that non-root account. It validates the resulting SSH configuration before reloading, disables root login and password/interactive authentication, and retains public-key login. It restores its previous config if validation fails. Test another new `paul` key login before closing the existing sessions. Reboot if package updates require it, then reconnect as `paul`.
+No certificate email is needed for an app update. The shared gateway already owns HTTPS and routing. Its route continues to reach `stillkey-web:8080` on the existing proxy network when the app container is replaced.
 
-## 4. Set DNS and deploy
+The updater:
 
-Create/update these DNS records at the authoritative DNS providers:
+1. Locks only the Stillkey deployment and checks the existing app/network.
+2. Saves a resolved rollback configuration and retains the exact previous image under a rollback tag.
+3. Builds and validates the new Stillkey image.
+4. Writes only `/srv/stacks/stillkey/compose.yaml`, `/srv/stacks/stillkey/.env`, and Stillkey history.
+5. Updates only the `stillkey` Compose project and waits for its health check. If startup fails, it attempts to restore the previous app image/configuration automatically and reports the failure.
 
-```text
-myclinichelper.com            A      SERVER_IPV4
-www.myclinichelper.com        CNAME  myclinichelper.com
-stillkey.paulhiggins.cloud    A      SERVER_IPV4
-```
+It does not write `/srv/stacks/.env`, modify certificates/routes/firewall/SSH, reload the gateway, or deploy other apps. A brief interruption of Stillkey's web server is possible during container replacement; installed offline clients can continue using their cached app. Browser vaults remain local and the service worker offers an update.
 
-Keep an existing working `www` A record instead if preferred. Keep other records such as MX/TXT. Set matching AAAA records only if IPv6 actually reaches this VPS; remove obsolete AAAA addresses for these hosts. If a DNS proxy/CDN is configured, use DNS-only mode initially. If CAA records restrict certificate issuance, ensure they permit Caddy's configured certificate authorities. Confirm DNS resolves publicly to the new server.
+## Compatibility with the original server setup
 
-On the VPS, supply a real email address for certificate notices:
+The original deployment used a shared `/srv/stacks/.env` containing a release ID for both apps. On the first independent update, the script reads that file to locate the current Stillkey container, then creates an app-specific `/srv/stacks/stillkey/.env`. The shared file stays unchanged for other services.
+
+Use the app-specific environment for later Stillkey administration:
 
 ```bash
-sudo bash ~/vps-release/setup/deploy.sh YOUR_EMAIL_ADDRESS
-bash ~/vps-release/setup/verify.sh
+sudo docker compose --env-file /srv/stacks/stillkey/.env -f /srv/stacks/stillkey/compose.yaml ps
+sudo docker compose --env-file /srv/stacks/stillkey/.env -f /srv/stacks/stillkey/compose.yaml logs --tail 100
 ```
 
-Deployment builds the app images and validates all Caddy/Compose configuration before replacing live configuration. It creates `/srv/stacks`, checks the two app networks are internal, starts and waits for the private app health checks, then starts/reloads Caddy. Initial certificate issuance may take a little time; retry verification once DNS has propagated. Certificates require public TCP 80/443 to reach the VPS.
+Do not use the old shared `--env-file /srv/stacks/.env` for Stillkey updates after this transition. Do not run an old `vps-release-*` bundle for routine updates; those are combined initial-server packages. They have been moved locally under `infrastructure/initial-vps/out/` to distinguish them from app releases.
 
-The first deployment needs outbound access to download OS packages and the official Caddy image. Stillkey's end users download the app shell once; their vault remains browser-local. Export an encrypted vault backup in localhost and restore it at `https://stillkey.paulhiggins.cloud` if you want to move your test accounts there.
+## Rollback
 
-## 5. Validate behavior
-
-The verification script checks HTTPS on all three hostnames, app health, the PWA manifest/service worker, security/cache headers, and missing-asset 404 behavior. Then test manually:
-
-- MyClinicHelper: form loading, GP list, body-diagram selection, PDF generation/download, and mobile layout, using synthetic patient information.
-- Stillkey: create/unlock a vault, import a synthetic QR, copy a code, export/restore an encrypted backup, install the PWA, disable networking, and reopen/unlock.
-- Reboot the VPS and check all three services restart.
-- From another machine, confirm only intended ports are reachable. No application or database ports should be exposed.
-
-Do not restore the old Nginx configuration over the new host. It is archived reference material, including legacy PHP/Faye/ModSecurity settings that are not needed for these two static applications. This setup does not reproduce the old ModSecurity rule engine.
-
-## Operations and updates
-
-Installed layout:
-
-```text
-/srv/stacks/.env
-/srv/stacks/gateway/{compose.yaml,Caddyfile}
-/srv/stacks/myclinichelper/compose.yaml
-/srv/stacks/stillkey/compose.yaml
-/srv/stacks/history/...
-```
-
-Status and logs:
+The updater prints a snapshot path under `/srv/stacks/stillkey/history/`. To restore one:
 
 ```bash
-sudo docker compose --env-file /srv/stacks/.env -f /srv/stacks/gateway/compose.yaml ps
-sudo docker compose --env-file /srv/stacks/.env -f /srv/stacks/gateway/compose.yaml logs --tail 100
-sudo docker compose --env-file /srv/stacks/.env -f /srv/stacks/stillkey/compose.yaml ps
+sudo bash ~/stillkey-release-TIMESTAMP/setup/rollback.sh /srv/stacks/stillkey/history/SNAPSHOT
 ```
 
-For app updates, generate/upload/extract a new bundle and run its `deploy.sh` with your email again. It saves the previous `.env` and Compose/Caddy configuration under `/srv/stacks/history/TIMESTAMP`. Existing browser vaults are untouched. The Stillkey service worker offers the user an update. Keep the previous app images and bundles until the release is verified; do not run `docker system prune -a` or delete the Caddy volumes casually.
+Rollback operates on Stillkey alone. It uses a fully resolved saved Compose configuration, so it also works for the first update from the old shared environment. It restores that configuration as valid JSON-in-YAML and an app-local environment file. Keep the retained `local/stillkey:rollback-*` images until you no longer need those snapshots; image pruning can remove rollback capability. The next normal release replaces the resolved configuration with the current template again.
 
-For rollback, restore `.env`, the gateway Caddyfile and all three Compose files from a known history directory, run `up -d --wait` for each app, then `up -d --wait` and `exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile` for the gateway, using the same `--env-file /srv/stacks/.env`. This requires the previous tagged app images still to be present. Deployment failure is reported; rollback is manual, not automatic.
+For a controlled local rehearsal, the deploy/rollback scripts accept `--stack-root /absolute/path`; the default is `/srv/stacks`. The test harness supplies isolated project names through `STILLKEY_PROJECT_NAME` and an optional standalone Compose CLI through `STILLKEY_COMPOSE_BIN`. Production commands above need neither variable.
 
-Back up `/srv/stacks` and keep the deployment bundles off-server. The `gateway_caddy_data` and `gateway_caddy_config` Docker volumes hold certificate/account state and should be included in ongoing server backups if you want to retain that state. Renewing/reissuing certificates remains possible after a clean restore. The VPS never stores Stillkey vaults: users must keep their encrypted account backups independently.
+## Verification
 
-OS security updates are automatic; container images are updated deliberately. Review new Caddy releases, change its pinned version consistently in the gateway Compose file, both Dockerfiles, and `deploy.sh`, validate, then deploy a new bundle. Review Docker package updates separately; major changes/reboots may interrupt services.
+`verify.sh` performs read-only checks against `https://stillkey.paulhiggins.cloud`, or an optional HTTPS base URL. It checks the app, health, manifest, service worker, cache/security headers, and missing-asset handling. Also test unlock, synthetic QR import, backups, installation, and offline reopening after a deployment.
 
-## Sources and validation
-
-- [Docker installation for Debian](https://docs.docker.com/engine/install/debian/)
-- [Docker installation for Ubuntu](https://docs.docker.com/engine/install/ubuntu/)
-- [Docker firewall behavior](https://docs.docker.com/engine/network/packet-filtering-firewalls/)
-- [Caddy Docker deployment](https://caddyserver.com/docs/running#docker-compose)
-- [Caddy automatic HTTPS requirements](https://caddyserver.com/docs/automatic-https)
-
-`test-local.py` exercises the actual images and Compose projects on isolated temporary networks and random loopback ports. Its gateway uses HTTP-only `.test` hostnames, so it never requests production certificates. It does not execute the host bootstrap or modify the VPS. Run with a working Docker daemon and Compose CLI:
+The local Docker rehearsal starts a representative existing installation, runs the actual app-only updater twice and a rollback, and verifies the shared configuration and unrelated container identities do not change:
 
 ```bash
-python3 deployment/test-local.py --bundle deployment/out/vps-release-TIMESTAMP.tar.gz
-# If Docker Compose is a standalone binary rather than a CLI plugin:
-python3 deployment/test-local.py --bundle deployment/out/vps-release-TIMESTAMP.tar.gz --compose /path/to/docker-compose
+python3 deployment/test-local.py --bundle deployment/out/stillkey-release-TIMESTAMP.tar.gz
+# If using a standalone Compose CLI locally:
+python3 deployment/test-local.py --bundle deployment/out/stillkey-release-TIMESTAMP.tar.gz --compose /path/to/docker-compose
 ```
 
-The bootstrap's OS/SSH/firewall changes still require execution and verification on the fresh VPS. Public DNS, real certificate issuance, and provider firewall rules cannot be validated in a local container rehearsal.
+## Initial server setup
+
+Server-wide bootstrap, SSH hardening, shared Caddy routes, and the original site migration are kept separately under `infrastructure/initial-vps/` as initial setup/recovery reference. That combined deploy script now refuses an already configured server. The infrastructure directory can later move to its own repository; it is never copied into a Stillkey release.

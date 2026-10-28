@@ -21,3 +21,6 @@ tests/sample-qr-codes/
 
 # Generated public deployment bundles
 deployment/out/
+
+# Generated initial-infrastructure bundles
+infrastructure/**/out/
